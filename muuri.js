@@ -2214,17 +2214,21 @@
       return this;
     }
 
+    // If this listeners queue is processing currently let's add the listener
+    // to the mutations queue instead and bail out immediately.
     if (this._isProcessing === event) {
       this._mutations.push('on', listener);
       return this;
     }
 
+    // Get listeners queue and create it if it does not exist.
     var listeners = this._events[event];
     if (!listeners) {
       listeners = this._events[event] = [];
       this._eventNames.push(event);
     }
 
+    // Add the listener to the queue.
     listeners.push(listener);
 
     return this;
@@ -2261,16 +2265,24 @@
    */
   Emitter.prototype.off = function (event, listener) {
 
-    var listeners = this._events[event];
-    if (this._isDestroyed || !listeners || !listeners.length) {
+    if (this._isDestroyed) {
       return this;
     }
 
+    // If this listeners queue is processing currently let's add the listener
+    // to the mutations queue instead and bail out immediately.
     if (this._isProcessing === event) {
       this._mutations.push('off', listener);
       return this;
     }
 
+    // Get listeners and return immediately if none is found.
+    var listeners = this._events[event];
+    if (!listeners || !listeners.length) {
+      return this;
+    }
+
+    // Remove all matching listeners.
     var i = listeners.length;
     while (i--) {
       if (listener === listeners[i]) {
@@ -2300,9 +2312,9 @@
       return this;
     }
 
+    // Process the listeners queue.
     var argsLength = arguments.length - 1;
     var i;
-
     this._isProcessing = event;
     for (i = 0; i < listeners.length; i++) {
       argsLength === 0 ? listeners[i]() :
