@@ -2187,6 +2187,9 @@
   function Emitter() {
 
     this._events = {};
+    this._eventNames = [];
+    this._mutations = [];
+    this._isProcessing = false;
     this._isDestroyed = false;
 
   }
@@ -2207,17 +2210,24 @@
    */
   Emitter.prototype.on = function (event, listener) {
 
-    var inst = this;
-
-    if (inst._isDestroyed) {
-      return inst;
+    if (this._isDestroyed) {
+      return this;
     }
 
-    var listeners = inst._events[event] || [];
-    listeners.push(listener);
-    inst._events[event] = listeners;
+    if (this._isProcessing === event) {
+      this._mutations.push('on', listener);
+      return this;
+    }
 
-    return inst;
+    var listeners = this._events[event];
+    if (!listeners) {
+      listeners = this._events[event] = [];
+      this._eventNames.push(event);
+    }
+
+    listeners.push(listener);
+
+    return this;
 
   };
 
@@ -2251,22 +2261,24 @@
    */
   Emitter.prototype.off = function (event, listener) {
 
-    var inst = this;
-
-    if (inst._isDestroyed) {
-      return inst;
+    var listeners = this._events[event];
+    if (this._isDestroyed || !listeners || !listeners.length) {
+      return this;
     }
 
-    var listeners = inst._events[event] || [];
-    var i = listeners.length;
+    if (this._isProcessing === event) {
+      this._mutations.push('off', listener);
+      return this;
+    }
 
+    var i = listeners.length;
     while (i--) {
       if (listener === listeners[i]) {
         listeners.splice(i, 1);
       }
     }
 
-    return inst;
+    return this;
 
   };
 
@@ -2283,28 +2295,36 @@
    */
   Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
 
-    var inst = this;
-
-    if (inst._isDestroyed) {
-      return inst;
+    var listeners = this._events[event];
+    if (this._isDestroyed || !listeners || !listeners.length) {
+      return this;
     }
 
-    var listeners = inst._events[event] || [];
-    var listenersLength = listeners.length;
     var argsLength = arguments.length - 1;
     var i;
 
-    if (listenersLength) {
-      listeners = listeners.concat();
-      for (i = 0; i < listenersLength; i++) {
-        argsLength === 0 ? listeners[i]() :
-        argsLength === 1 ? listeners[i](arg1) :
-        argsLength === 2 ? listeners[i](arg1, arg2) :
-                            listeners[i](arg1, arg2, arg3);
-      }
+    this._isProcessing = event;
+    for (i = 0; i < listeners.length; i++) {
+      argsLength === 0 ? listeners[i]() :
+      argsLength === 1 ? listeners[i](arg1) :
+      argsLength === 2 ? listeners[i](arg1, arg2) :
+                         listeners[i](arg1, arg2, arg3);
+    }
+    this._isProcessing = false;
+
+    // If there were no listeners added to or removed from the processed queue
+    // let's bail out quickly.
+    if (!this._mutations.length) {
+      return this;
     }
 
-    return inst;
+    // Handle the mutations.
+    for (i = 0; i < this._mutations.length; i = i + 2) {
+      this[this._mutations[i]](event, this._mutations[i + 1]);
+    }
+    this._mutations.length = 0;
+
+    return this;
 
   };
 
@@ -2317,22 +2337,18 @@
    */
   Emitter.prototype.destroy = function () {
 
-    var inst = this;
-
-    if (inst._isDestroyed) {
-      return inst;
+    if (this._isDestroyed) {
+      return this;
     }
 
-    var eventNames = Object.keys(inst._events);
-    var i;
-
-    for (i = 0; i < eventNames.length; i++) {
-      inst._events[eventNames[i]] = null;
+    this._isDestroyed = true;
+    for (var i = 0; i < this._eventNames.length; i++) {
+      this._events[this._eventNames[i]] = undefined;
     }
+    this._eventNames.length = 0;
+    this._mutations.length = 0;
 
-    inst._isDestroyed = true;
-
-    return inst;
+    return this;
 
   };
 
