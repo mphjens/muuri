@@ -28,24 +28,29 @@
     var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
+    var getHiddenItems = function () {
+      return grid.getItems().filter(function (item) {
+        return !item.isVisible();
+      });
+    };
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    assert.strictEqual(grid.getItems('hidden').length, 0, 'there should be no hidden items before the tests commence');
+    assert.strictEqual(getHiddenItems().length, 0, 'there should be no hidden items before the tests commence');
 
     grid.hide(0);
-    assert.deepEqual(idList(grid.getItems('hidden')), idList(items.slice(0, 1)), 'should accept an index as the first argument');
+    assert.deepEqual(idList(getHiddenItems()), idList(items.slice(0, 1)), 'should accept an index as the first argument');
 
     grid.hide(items[1]);
-    assert.deepEqual(idList(grid.getItems('hidden')), idList(items.slice(0, 2)), 'should accept an item as the first argument');
+    assert.deepEqual(idList(getHiddenItems()), idList(items.slice(0, 2)), 'should accept an item as the first argument');
 
     grid.hide(items[2].getElement());
-    assert.deepEqual(idList(grid.getItems('hidden')), idList(items.slice(0, 3)), 'should accept an element as the first argument');
+    assert.deepEqual(idList(getHiddenItems()), idList(items.slice(0, 3)), 'should accept an element as the first argument');
 
     grid.hide([3, items[4].getElement(), items[5]]);
-    assert.deepEqual(idList(grid.getItems('hidden')), idList(items.slice(0, 6)), 'should accept an array of items, elements and indices as the first argument');
+    assert.deepEqual(idList(getHiddenItems()), idList(items.slice(0, 6)), 'should accept an array of items, elements and indices as the first argument');
 
     teardown();
 
@@ -58,13 +63,18 @@
     var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
+    var getHidingItems = function () {
+      return grid.getItems().filter(function (item) {
+        return item.isHiding();
+      });
+    };
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     grid.hide(0);
-    assert.deepEqual(idList(grid.getItems('hiding')), idList(items.slice(0, 1)));
+    assert.deepEqual(idList(getHidingItems()), idList(items.slice(0, 1)));
 
     teardown();
 

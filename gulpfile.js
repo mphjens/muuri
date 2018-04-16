@@ -34,15 +34,30 @@ gulp.task('lint', function () {
     .pipe(eslint.failAfterError());
 });
 
-gulp.task('compress', function() {
+gulp.task('minify', function() {
   return gulp.src('./' + pkg.main)
-    .pipe(size({title: 'development'}))
     .pipe(uglify())
     .pipe(header(getBanners('./' + pkg.main)))
-    .pipe(size({title: 'minified'}))
-    .pipe(size({title: 'gzipped', gzip: true}))
     .pipe(rename(pkg.main.replace('./', '').replace('.js', '.min.js')))
     .pipe(gulp.dest('./'));
+});
+
+gulp.task('log-size', function() {
+  return gulp.src(['./' + pkg.main, ('./' + pkg.main).replace('.js', '.min.js')])
+    .pipe(size({
+      showFiles: true,
+      showTotal: false
+    }))
+    .pipe(size({
+      showFiles: true,
+      showTotal: false,
+      title: 'gzipped',
+      gzip: true
+    }));
+});
+
+gulp.task('clean', function (cb) {
+  rimraf('./*.log', cb);
 });
 
 gulp.task('test-local', function (done) {
@@ -60,7 +75,7 @@ gulp.task('test-local', function (done) {
   })).start();
 });
 
-gulp.task('test', function (done) {
+gulp.task('test-sauce', function (done) {
   var browsers = [];
   argv.chrome && browsers.push('slChrome');
   argv.firefox && browsers.push('slFirefox');
@@ -75,15 +90,6 @@ gulp.task('test', function (done) {
   })).start();
 });
 
-gulp.task('clean', function (cb) {
-  rimraf('./*.log', cb);
-});
-
-gulp.task('default', function (done) {
-  if (process.env.CI) {
-    runSequence('lint', 'compress', 'test', 'clean', done);
-  }
-  else {
-    runSequence('lint', 'compress', 'test-local', 'clean', done);
-  }
+gulp.task('test', function (done) {
+  runSequence('lint', 'test-sauce', 'clean', done);
 });

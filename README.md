@@ -36,14 +36,14 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
 ### 1. Get Muuri
 
 Download from GitHub:
-* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.5.4/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.5.4/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.6.0/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.6.0/muuri.min.js) - for production (minified, no comments).
 
 Or link directly via CDNJS:
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.4/muuri.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.4/muuri.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.6.0/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.6.0/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):
@@ -870,7 +870,7 @@ var grid = new Muuri(elem, {
 ### Grid methods
 
 * [grid.getElement()](#gridgetelement)
-* [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
+* [grid.getItems( [targets] )](#gridgetitems-targets-)
 * [grid.refreshItems( [items] )](#gridrefreshitems-items-)
 * [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
 * [grid.synchronize()](#gridsynchronize)
@@ -898,18 +898,14 @@ Get the instance element.
 var elem = grid.getElement();
 ```
 
-### grid.getItems( [targets], [state] )
+### grid.getItems( [targets] )
 
-Get all items in the grid. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state.
+Get all items in the grid. Optionally you can provide specific targets (indices or elements).
 
 **Parameters**
 
 * **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
   * An array of item instances/elements/indices.
-  * Optional.
-* **state** &nbsp;&mdash;&nbsp; *string*
-  * Accepted values: `'active'`, `'inactive'`, `'visible'`, `'hidden'`, `'showing'`, `'hiding'`, `'positioning'`, `'dragging'`, `'releasing'`, `'migrating'`.
-  * Default value: `undefined`.
   * Optional.
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
@@ -920,20 +916,21 @@ Returns the queried items.
 // Get all items, both active and inactive.
 var allItems = grid.getItems();
 
-// Get all active (visible) items.
-var activeItems = grid.getItems('active');
+// Get all active items.
+var activeItems = grid.getItems().filter(function (item) {
+  return item.isActive();
+});
 
-// Get all inactive (hidden) items.
-var inactiveItems = grid.getItems('inactive');
+// Get all positioning items.
+var positioningItems = grid.getItems().filter(function (item) {
+  return item.isPositioning();
+});
 
-// Get the first item (active or inactive).
+// Get the first item.
 var firstItem = grid.getItems(0)[0];
 
-// Get specific items by their elements (inactive or active).
+// Get specific items by their elements.
 var items = grid.getItems([elemA, elemB]);
-
-// Get specific inactive items.
-var items = grid.getItems([elemA, elemB], 'inactive');
 ```
 
 ### grid.refreshItems( [items] )

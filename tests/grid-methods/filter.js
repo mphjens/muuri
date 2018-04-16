@@ -30,6 +30,7 @@
     var items = grid.getItems();
     var firstItem = items[0];
     var i = 0;
+    var visibleItems;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -40,8 +41,13 @@
       ++i;
       return item === firstItem;
     });
-    assert.strictEqual(i, 10), 'predicate function should be called for each item';
-    assert.deepEqual(idList(grid.getItems('visible')), idList([firstItem]), 'the items for which true were returned should be shown and others hidden');
+
+    visibleItems = grid.getItems().filter(function (item) {
+      return item.isVisible();
+    });
+
+    assert.strictEqual(i, 10, 'predicate function should be called for each item');
+    assert.deepEqual(idList(visibleItems), idList([firstItem]), 'the items for which true were returned should be shown and others hidden');
     teardown();
 
   });
@@ -54,6 +60,7 @@
     var grid = new Muuri(container);
     var items = grid.getItems();
     var firstItem = items[0];
+    var visibleItems;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -61,7 +68,11 @@
 
     firstItem.getElement().classList.add('foo');
     grid.filter('.foo');
-    assert.deepEqual(idList(grid.getItems('visible')), idList([firstItem]));
+    visibleItems = grid.getItems().filter(function (item) {
+      return item.isVisible();
+    });
+
+    assert.deepEqual(idList(visibleItems), idList([firstItem]));
     teardown();
 
   });
@@ -73,6 +84,8 @@
     var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
+    var showingItems;
+    var hidingItems;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -83,8 +96,15 @@
     .filter(function (item) {
       return item === items[0];
     });
-    assert.deepEqual(idList(grid.getItems('showing')), idList(items.slice(0, 1)));
-    assert.deepEqual(idList(grid.getItems('hiding')), idList(items.slice(1)));
+    showingItems = grid.getItems().filter(function (item) {
+      return item.isShowing();
+    });
+    hidingItems = grid.getItems().filter(function (item) {
+      return item.isHiding();
+    });
+
+    assert.deepEqual(idList(showingItems), idList(items.slice(0, 1)));
+    assert.deepEqual(idList(hidingItems), idList(items.slice(1)));
 
     teardown();
 
@@ -97,6 +117,10 @@
     var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
+    var visibleItems;
+    var hiddenItems;
+    var showingItems;
+    var hidingItems;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -107,10 +131,23 @@
     .filter(function (item) {
       return item === items[0];
     }, {instant: true});
-    assert.strictEqual(grid.getItems('showing').length, 0);
-    assert.strictEqual(grid.getItems('hiding').length, 0);
-    assert.deepEqual(idList(grid.getItems('visible')), idList(items.slice(0, 1)));
-    assert.deepEqual(idList(grid.getItems('hidden')), idList(items.slice(1)));
+    showingItems = grid.getItems().filter(function (item) {
+      return item.isShowing();
+    });
+    hidingItems = grid.getItems().filter(function (item) {
+      return item.isHiding();
+    });
+    visibleItems = grid.getItems().filter(function (item) {
+      return item.isVisible();
+    });
+    hiddenItems = grid.getItems().filter(function (item) {
+      return !item.isVisible();
+    });
+
+    assert.strictEqual(showingItems.length, 0);
+    assert.strictEqual(hidingItems.length, 0);
+    assert.deepEqual(idList(visibleItems), idList(items.slice(0, 1)));
+    assert.deepEqual(idList(hiddenItems), idList(items.slice(1)));
 
     teardown();
 

@@ -1,25 +1,9 @@
 /*!
- * Muuri v0.5.4
+ * Muuri v0.6.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Released under the MIT license
+ * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
 (function (global, factory) {
@@ -236,14 +220,14 @@
     inst._items = [];
     items = settings.items;
     if (typeof items === typeString) {
-      nodeListToArray(inst._element.children).forEach(function (itemElement) {
+      toArray(inst._element.children).forEach(function (itemElement) {
         if (items === '*' || elementMatches(itemElement, items)) {
           inst._items.push(new Grid.Item(inst, itemElement));
         }
       });
     }
     else if (Array.isArray(items) || isNodeList(items)) {
-      inst._items = nodeListToArray(items).map(function (itemElement) {
+      inst._items = toArray(items).map(function (itemElement) {
         return new Grid.Item(inst, itemElement);
       });
     }
@@ -405,13 +389,8 @@
    */
   Grid.prototype.on = function (event, listener) {
 
-    var inst = this;
-
-    if (!inst._isDestroyed) {
-      inst._emitter.on(event, listener);
-    }
-
-    return inst;
+    this._emitter.on(event, listener);
+    return this;
 
   };
 
@@ -426,13 +405,8 @@
    */
   Grid.prototype.once = function (event, listener) {
 
-    var inst = this;
-
-    if (!inst._isDestroyed) {
-      inst._emitter.once(event, listener);
-    }
-
-    return inst;
+    this._emitter.once(event, listener);
+    return this;
 
   };
 
@@ -447,13 +421,8 @@
    */
   Grid.prototype.off = function (event, listener) {
 
-    var inst = this;
-
-    if (!inst._isDestroyed) {
-      inst._emitter.off(event, listener);
-    }
-
-    return inst;
+    this._emitter.off(event, listener);
+    return this;
 
   };
 
@@ -472,52 +441,35 @@
 
   /**
    * Get all items. Optionally you can provide specific targets (elements and
-   * indices) and filter the results based on the state of the items. Note that
-   * the returned array is not the same object used by the instance so modifying
-   * it will not affect instance's items. All items that are not found are
-   * omitted from the returned array.
+   * indices). Note that the returned array is not the same object used by the
+   * instance so modifying it will not affect instance's items. All items that
+   * are not found are omitted from the returned array.
    *
    * @public
    * @memberof Grid.prototype
    * @param {GridMultiItemQuery} [targets]
-   * @param {GridItemState} [state]
    * @returns {Item[]}
    */
-  Grid.prototype.getItems = function (targets, state) {
+  Grid.prototype.getItems = function (targets) {
 
-    var inst = this;
-
-    // Return an empty array immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return [];
+    // Return all items immediately if no targets were provided or if the
+    // instance is destroyed.
+    if (!targets || this._isDestroyed) {
+      return this._items.concat();
     }
 
-    var hasTargets = targets === 0 || (targets && typeof targets !== typeString);
-    var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
-    var targetState = !hasTargets ? targets : state;
     var ret = [];
+    var targetItems = toArray(targets);
     var item;
     var i;
 
-    // Sanitize target state.
-    targetState = typeof targetState === typeString ? targetState : null;
-
     // If target state or target items are defined return filtered results.
-    if (targetState || targetItems) {
-      targetItems = targetItems || inst._items;
-      for (i = 0; i < targetItems.length; i++) {
-        item = hasTargets ? inst._getItem(targetItems[i]) : targetItems[i];
-        if (item && (!targetState || isItemInState(item, targetState))) {
-          ret.push(item);
-        }
-      }
-      return ret;
+    for (i = 0; i < targetItems.length; i++) {
+      item = this._getItem(targetItems[i]);
+      item && ret.push(item);
     }
 
-    // Otherwise return all items.
-    else {
-      return ret.concat(inst._items);
-    }
+    return ret;
 
   };
 
@@ -531,20 +483,18 @@
    */
   Grid.prototype.refreshItems = function (items) {
 
-    var inst = this;
-
-    if (inst._isDestroyed) {
-      return inst;
+    if (this._isDestroyed) {
+      return this;
     }
 
-    var targetItems = inst.getItems(items || 'active');
+    var targets = this.getItems(items);
     var i;
 
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refreshDimensions();
+    for (i = 0; i < targets.length; i++) {
+      targets[i]._refreshDimensions();
     }
 
-    return inst;
+    return this;
 
   };
 
@@ -638,16 +588,21 @@
       return inst;
     }
 
+    // Get all active items
+    var items = [];
+    var i;
+    for (i = 0; i < inst._items.length; i++) {
+      inst._items[i]._isActive && items.push(inst._items[i]);
+    }
+
     var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
-    var items = inst.getItems('active');
     var layout = inst._layout = new Grid.Layout(inst, items);
     var counter = items.length;
     var isBorderBox;
     var containerStyles;
     var item;
     var position;
-    var i;
 
     // The finish function, which will be used for checking if all the items
     // have laid out yet. After all items have finished their animations call
@@ -760,14 +715,13 @@
       return [];
     }
 
-    var targetElements = isNodeList(elements) ? nodeListToArray(elements) : [].concat(elements);
-    var newItems = [];
-
     // Return early if there are no items.
+    var targetElements = toArray(elements);
     if (!targetElements.length) {
-      return newItems;
+      return targetElements;
     }
 
+    var newItems = [];
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var items = inst._items;
@@ -1047,7 +1001,8 @@
     if (typeof comparer === typeFunction) {
       items.sort(function (a, b) {
         var result = comparer(a, b);
-        return (isDescending && result !== 0 ? -result : result) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
+        return (isDescending && result !== 0 ? -result : result)
+          || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
       });
     }
 
@@ -1058,7 +1013,8 @@
         return val.split(':');
       });
       items.sort(function (a, b) {
-        return compareItems(a, b, isDescending, comparer) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
+        return compareItems(a, b, isDescending, comparer)
+          || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
       });
     }
 
@@ -1186,7 +1142,7 @@
 
     // If migration was started succesfully and the item is active, let's layout
     // the grids.
-    if (item._migrate.isActive && item.isActive()) {
+    if (item._migrate.isActive && item._isActive) {
       if (layoutSender) {
         currentGrid.layout(layoutSender === 'instant', typeof layoutSender === typeFunction ? layoutSender : undefined);
       }
@@ -1260,46 +1216,42 @@
    *
    * @protected
    * @memberof Grid.prototype
-   * @param {GridSingleItemQuery} [target=0]
+   * @param {GridSingleItemQuery} [target]
    * @returns {?Item}
    */
   Grid.prototype._getItem = function (target) {
 
-    var inst = this;
-    var items = inst._items;
-    var i;
+    // TODO: Check all places that use this and make sure they don't rely on
+    // the default 0 value. 
 
-    // If no target is specified or the instance is destroyed, return the first
-    // item or null.
-    if (inst._isDestroyed || !target) {
-      return items[0] || null;
+    // If no target is specified or the instance is destroyed, return null.
+    if (this._isDestroyed || (!target && target !== 0)) {
+      return null;
     }
 
     // If target is number return the item in that index. If the number is lower
     // than zero look for the item starting from the end of the items array. For
     // example -1 for the last item, -2 for the second last item, etc.
-    else if (typeof target === typeNumber) {
-      return items[target > -1 ? target : items.length + target] || null;
+    if (typeof target === typeNumber) {
+      return this._items[target > -1 ? target : this._items.length + target] || null;
     }
 
     // If the target is an instance of Item return it if it is attached to this
     // Grid instance, otherwise return null.
-    else if (target instanceof Item) {
-      return target._gridId === inst._id ? target : null;
+    if (target instanceof Item) {
+      return target._gridId === this._id ? target : null;
     }
 
     // In other cases let's assume that the target is an element, so let's try
     // to find an item that matches the element and return it. If item is not
     // found return null.
-    else {
-      // TODO: This could be made a lot faster by using WeakMap or Map.
-      for (i = 0; i < items.length; i++) {
-        if (items[i]._element === target) {
-          return items[i];
-        }
+    // TODO: This could be made a lot faster by using WeakMap or Map.
+    for (var i = 0; i < this._items.length; i++) {
+      if (this._items[i]._element === target) {
+        return this._items[i];
       }
-      return null;
     }
+    return null;
 
   };
 
@@ -2619,13 +2571,13 @@
     targetIndex = normalizeArrayIndex(targetGrid._items, targetIndex, true);
 
     // Get current translateX and translateY values if needed.
-    if (item.isPositioning() || migrate.isActive || item.isReleasing()) {
+    if (item._isPositioning || migrate.isActive || item.isReleasing()) {
       translateX = getTranslateAsFloat(itemElement, 'x');
       translateY = getTranslateAsFloat(itemElement, 'y');
     }
 
     // Abort current positioning.
-    if (item.isPositioning()) {
+    if (item._isPositioning) {
       item._stopLayout(true, {transform: getTranslateString(translateX, translateY)});
     }
 
@@ -3243,98 +3195,107 @@
    *   - Returns false if no valid index was found. Otherwise returns drag sort
    *     command.
    */
-  ItemDrag.defaultSortPredicate = function (item) {
+  ItemDrag.defaultSortPredicate = (function () {
 
-    var drag = item._drag;
-    var dragData = drag._data;
-    var rootGrid = drag.getGrid();
-    var settings = rootGrid._settings;
-    var config = settings.dragSortPredicate || {};
-    var sortThreshold = config.threshold || 50;
-    var sortAction = config.action || 'move';
-    var itemRect = {
-      width: item._width,
-      height: item._height,
-      left: dragData.elementClientX,
-      top: dragData.elementClientY
-    };
-    var grid = getTargetGrid(item, rootGrid, itemRect, sortThreshold);
-    var gridOffsetLeft = 0;
-    var gridOffsetTop = 0;
-    var matchScore = -1;
-    var matchIndex;
-    var hasValidTargets;
-    var target;
-    var score;
-    var i;
+    var itemRect = {};
+    var targetRect = {};
+    var returnData = {};
 
-    // Return early if we found no grid container element that overlaps the
-    // dragged item enough.
-    if (!grid) {
+    return function (item) {
+
+      var dragData = item._drag._data;
+      var rootGrid = item._drag.getGrid();
+
+      // Get drag sort predicate settings.
+      var settings = rootGrid._settings.dragSortPredicate;
+      var sortThreshold = settings ? settings.threshold : 50;
+      var sortAction = settings ? settings.action : 'move';
+
+      // Populate item rect data.
+      itemRect.width = item._width;
+      itemRect.height = item._height;
+      itemRect.left = dragData.elementClientX;
+      itemRect.top = dragData.elementClientY;
+
+      // Calculate the target grid.
+      var grid = getTargetGrid(item, rootGrid, itemRect, sortThreshold);
+
+      // Return early if we found no grid container element that overlaps the
+      // dragged item enough.
+      if (!grid) {
+        return false;
+      }
+
+      var gridOffsetLeft = 0;
+      var gridOffsetTop = 0;
+      var matchScore = -1;
+      var matchIndex;
+      var hasValidTargets;
+      var target;
+      var score;
+      var i;
+
+      // If item is moved within it's originating grid adjust item's left and
+      // top props. Otherwise if item is moved to/within another grid get the
+      // container element's offset (from the element's content edge).
+      if (grid === rootGrid) {
+        itemRect.left = dragData.gridX + item._margin.left;
+        itemRect.top = dragData.gridY + item._margin.top;
+      }
+      else {
+        gridOffsetLeft = grid._left + grid._border.left;
+        gridOffsetTop = grid._top + grid._border.top;
+      }
+
+      // Loop through the target grid items and try to find the best match.
+      for (i = 0; i < grid._items.length; i++) {
+
+        target = grid._items[i];
+
+        // If the target item is not active or the target item is the dragged
+        // item let's skip to the next item.
+        if (!target._isActive || target === item) {
+          continue;
+        }
+
+        // Mark the grid as having valid target items.
+        hasValidTargets = true;
+
+        // Calculate the target's overlap score with the dragged item.
+        targetRect.width = target._width;
+        targetRect.height = target._height;
+        targetRect.left = target._left + target._margin.left + gridOffsetLeft;
+        targetRect.top = target._top + target._margin.top + gridOffsetTop;
+        score = getRectOverlapScore(itemRect, targetRect);
+
+        // Update best match index and score if the target's overlap score with
+        // the dragged item is higher than the current best match score.
+        if (score > matchScore) {
+          matchIndex = i;
+          matchScore = score;
+        }
+
+      }
+
+      // If there is no valid match and the item is being moved into another
+      // grid.
+      if (matchScore < sortThreshold && item.getGrid() !== grid) {
+        matchIndex = hasValidTargets ? -1 : 0;
+        matchScore = Infinity;
+      }
+
+      // Check if the best match overlaps enough to justify a placement switch.
+      if (matchScore >= sortThreshold) {
+        returnData.grid = grid;
+        returnData.index = matchIndex;
+        returnData.action = sortAction;
+        return returnData;
+      }
+
       return false;
-    }
 
-    // If item is moved within it's originating grid adjust item's left and top
-    // props. Otherwise if item is moved to/within another grid get the
-    // container element's offset (from the element's content edge).
-    if (grid === rootGrid) {
-      itemRect.left = dragData.gridX + item._margin.left;
-      itemRect.top = dragData.gridY + item._margin.top;
-    }
-    else {
-      gridOffsetLeft = grid._left + grid._border.left;
-      gridOffsetTop = grid._top + grid._border.top;
-    }
-
-    // Loop through the target grid items and try to find the best match.
-    for (i = 0; i < grid._items.length; i++) {
-
-      target = grid._items[i];
-
-      // If the target item is not active or the target item is the dragged item
-      // let's skip to the next item.
-      if (!target._isActive || target === item) {
-        continue;
-      }
-
-      // Mark the grid as having valid target items.
-      hasValidTargets = true;
-
-      // Calculate the target's overlap score with the dragged item.
-      score = getRectOverlapScore(itemRect, {
-        width: target._width,
-        height: target._height,
-        left: target._left + target._margin.left + gridOffsetLeft,
-        top: target._top + target._margin.top + gridOffsetTop
-      });
-
-      // Update best match index and score if the target's overlap score with
-      // the dragged item is higher than the current best match score.
-      if (score > matchScore) {
-        matchIndex = i;
-        matchScore = score;
-      }
-
-    }
-
-    // If there is no valid match and the item is being moved into another grid.
-    if (matchScore < sortThreshold && item.getGrid() !== grid) {
-      matchIndex = hasValidTargets ? -1 : 0;
-      matchScore = Infinity;
-    }
-
-    // Check if the best match overlaps enough to justify a placement switch.
-    if (matchScore >= sortThreshold) {
-      return {
-        grid: grid,
-        index: matchIndex,
-        action: sortAction
-      };
-    }
-
-    return false;
-
-  };
+    };
+  })();
 
   /**
    * ItemDrag - Public prototype methods
@@ -3816,7 +3777,7 @@
     }
 
     // Stop current positioning animation.
-    if (item.isPositioning()) {
+    if (item._isPositioning) {
       item._stopLayout(true, {transform: getTranslateString(currentLeft, currentTop)});
     }
 
@@ -4549,15 +4510,15 @@
   }
 
   /**
-   * Convert nodeList to array.
+   * Converts a value to an array / clones an array.
    *
    * @private
-   * @param {NodeList} nodeList
-   * @returns {HTMLElement[]}
+   * @param {*} target
+   * @returns {Array}
    */
-  function nodeListToArray(nodeList) {
+  function toArray(target) {
 
-    return [].slice.call(nodeList);
+    return  isNodeList(target) ? Array.prototype.slice.call(target) : Array.prototype.concat(target);
 
   }
 
@@ -5003,7 +4964,7 @@
    * @returns {Item[]}
    */
   function sortItemsByReference(items, refItems) {
-
+    // TODO: Try to pull this off without creating a single new array.
     var newItems = [];
     var currentItems = items.concat();
     var item;
@@ -5217,55 +5178,71 @@
    * @param {Number} threshold
    * @returns {?Grid}
    */
-  function getTargetGrid(item, rootGrid, itemRect, threshold) {
+  var getTargetGrid = (function () {
 
-    var ret = null;
-    var dragSort = rootGrid._settings.dragSort;
-    var grids = dragSort === true ? [rootGrid] : dragSort.call(rootGrid, item);
-    var bestScore = -1;
-    var gridScore;
-    var grid;
-    var i;
+    var rootGridArray = [];
+    var targetRect = {};
 
-    // Return immediately if there are no grids.
-    if (!Array.isArray(grids)) {
+    return function (item, rootGrid, itemRect, threshold) {
+
+      var ret = null;
+      var dragSort = rootGrid._settings.dragSort;
+      var bestScore = -1;
+      var gridScore;
+      var grids;
+      var grid;
+      var i;
+
+      // Get potential target grids.
+      if (dragSort === true) {
+        rootGridArray[0] = rootGrid;
+        grids = rootGridArray;
+      } else {
+        grids = dragSort.call(rootGrid, item);
+      }
+
+      // Return immediately if there are no grids.
+      if (!Array.isArray(grids)) {
+        return ret;
+      }
+
+      // Loop through the grids and get the best match.
+      for (i = 0; i < grids.length; i++) {
+  
+        grid = grids[i];
+  
+        // Filter out all destroyed grids.
+        if (grid._isDestroyed) {
+          continue;
+        }
+  
+        // We need to update the grid's offset since it may have changed during
+        // scrolling. This could be left as problem for the userland, but it's
+        // much nicer this way. One less hack for the user to worry about =)
+        grid._refreshDimensions();
+  
+        // Check how much dragged element overlaps the container element.
+        targetRect.width = grid._width;
+        targetRect.height = grid._height;
+        targetRect.left = grid._left;
+        targetRect.top = grid._top;
+        gridScore = getRectOverlapScore(itemRect, targetRect);
+  
+        // Check if this grid is the best match so far.
+        if (gridScore > threshold && gridScore > bestScore) {
+          bestScore = gridScore;
+          ret = grid;
+        }
+  
+      }
+  
+      // Always reset root grid array.
+      rootGridArray.length = 0;
+
       return ret;
-    }
-
-    // Loop through the grids and get the best match.
-    for (i = 0; i < grids.length; i++) {
-
-      grid = grids[i];
-
-      // Filter out all destroyed grids.
-      if (grid._isDestroyed) {
-        continue;
-      }
-
-      // We need to update the grid's offset since it may have changed during
-      // scrolling. This could be left as problem for the userland, but it's
-      // much nicer this way. One less hack for the user to worry about =)
-      grid._refreshDimensions();
-
-      // Check how much dragged element overlaps the container element.
-      gridScore = getRectOverlapScore(itemRect, {
-        width: grid._width,
-        height: grid._height,
-        left: grid._left,
-        top: grid._top
-      });
-
-      // Check if this grid is the best match so far.
-      if (gridScore > threshold && gridScore > bestScore) {
-        bestScore = gridScore;
-        ret = grid;
-      }
-
-    }
-
-    return ret;
-
-  }
+  
+    };
+  })();
 
   /**
    * Process item's callback queue.
@@ -5277,41 +5254,13 @@
    */
   function processQueue(queue, interrupted, instance) {
 
+    // TODO: Find a way to do this without cloning the queue.
     var callbacks = queue.splice(0, queue.length);
     var i;
 
     for (i = 0; i < callbacks.length; i++) {
       callbacks[i](interrupted, instance);
     }
-
-  }
-
-  /**
-   * Check if item is in specific state.
-   *
-   * @private
-   * @param {Item} item
-   * @param {GridItemState} state
-   *  - Accepted values are: "active", "inactive", "visible", "hidden",
-   *    "showing", "hiding", "positioning", "dragging", "releasing" and
-   *    "migrating".
-   * @returns {Boolean}
-   */
-  function isItemInState(item, state) {
-
-    var methodName;
-
-    if (state === 'inactive') {
-      return !item.isActive();
-    }
-
-    if (state === 'hidden') {
-      return !item.isVisible();
-    }
-
-    methodName = 'is' + state.charAt(0).toUpperCase() + state.slice(1);
-
-    return typeof item[methodName] === typeFunction ? item[methodName]() : false;
 
   }
 
@@ -5387,6 +5336,7 @@
     dragStartPredicateReset(item);
 
     // If the cursor is still within the handle let's start the drag.
+    // TODO: Reuse object.
     return isPointWithinRect(pageX, pageY, {
       width: handleRect.width,
       height: handleRect.height,
@@ -5421,7 +5371,7 @@
    */
 
   /*!
-    * muuriLayout v0.5.4
+    * muuriLayout v0.6.0
     * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
     * Released under the MIT license
     */

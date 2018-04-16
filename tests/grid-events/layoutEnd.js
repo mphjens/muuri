@@ -31,7 +31,9 @@
       teardown();
     });
     grid.hide(0, {instant: true, layout: false});
-    expectedItems = grid.getItems('active');
+    expectedItems = grid.getItems().filter(function (item) {
+      return item.isActive();
+    });
     grid.move(1, -1);
 
   });
