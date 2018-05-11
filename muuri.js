@@ -3296,7 +3296,7 @@
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
-    if (matchScore >= sortThreshold) {
+    if (matchScore) {
       return {
         grid: grid,
         index: matchIndex,
@@ -3508,7 +3508,7 @@
     if (!isMigration) {
 
       // Make sure the target index is not the current index.
-      if (currentIndex !== targetIndex) {
+      if (currentIndex !== targetIndex && targetIndex < currentGrid._items.length - 1) {
 
         // Do the sort.
         (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
@@ -3521,8 +3521,13 @@
           action: sortAction
         });
 
+        
         // Layout the grid.
-        currentGrid.layout();
+        if(!currentGrid._settings.noLayoutOnDrag){
+          currentGrid.layout();
+          //console.log("Should've layed out");
+        }
+          
 
       }
 
